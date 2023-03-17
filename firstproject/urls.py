@@ -10,6 +10,7 @@ urlpatterns = [
     path('', blogapp.views.index, name='index'),
     path('blogMain/', blogapp.views.blogMain, name='blogMain'),
     path('blogMain/chatGPT/', blogapp.views.chatGPT, name='chatGPT'),
+    path('blogMain/davinchi/', blogapp.views.davinchi, name='davinchi'),
     path('blogMain/chatGPT/tistory', blogapp.views.tistory, name='tistory'),
     path('blogMain/createBlog/', blogapp.views.createBlog, name='createBlog'),
     path('ckeditor/', include('ckeditor_uploader.urls')),

@@ -139,23 +139,82 @@ def oauth(request):
     return redirect('blogMain')
 
 
+def generate_response_chatgpt(conversation):
+    response = openai.ChatCompletion.create(
+        model= os.environ.get("GPT_ENGINE"),
+        messages=conversation
+    )
+    api_usage = response['usage']
+    print('Total token consumed: {0}'.format(api_usage['total_tokens']))
 
-def generate_response(prompt):
-    """Generate a response from OpenAI's API"""
+    # stop means complete
+    print(response['choices'][0].finish_reason)
+    print(response['choices'][0].index)
+    conversation.append({'role': response.choices[0].message.role, 'content': response.choices[0].message.content})
+
+    return conversation
+
+def chatGPT(request):
+    if request.method == 'POST':
+
+        text1 = [request.POST['text'], request.POST['text2'], request.POST['text3']]
+
+        for row in text1:
+            text = row
+
+            if text == "":
+                return redirect('blogMain')
+            
+            conversation = []
+            conversation2 = []
+            conversation.append({"role": "system", "content": os.environ.get("GPT_1")})
+            conversation = generate_response_chatgpt(conversation)
+            print('Role: {0}; Content: {1}'.format(conversation[-1]['role'], conversation[-1]['content']))
+
+            conversation.append({"role": "user", "content": os.environ.get("GPT_2").format(text)})
+            conversation2 = generate_response_chatgpt(conversation)
+            print('Role: {0}; Content: {1}'.format(conversation2[-1]['role'], conversation2[-1]['content']))
+
+            conversation.append({"role": "user", "content": os.environ.get("GPT_3").format(text)})
+            conversation = generate_response_chatgpt(conversation)
+            print('Role: {0}; Content: {1}'.format(conversation[-1]['role'], conversation[-1]['content']))
+
+            conversation.append({"role": "user", "content": os.environ.get("GPT_4").format(text)})
+            conversation = generate_response_chatgpt(conversation)
+            print('Role: {0}; Content: {1}'.format(conversation[-1]['role'], conversation[-1]['content']))
+
+            conversation.append({"role": "user", "content": os.environ.get("GPT_5").format(text)})
+            conversation = generate_response_chatgpt(conversation)
+            print('Role: {0}; Content: {1}'.format(conversation[-1]['role'], conversation[-1]['content']))
+
+            # papagoResponse2 = requests.post(settings.PAPAGO_URL, headers=settings.HEADERS, data={"source": "en", "target": "ko", "text": conversation2})
+            # papagoResult3 = papagoResponse2.json()["message"]["result"]["translatedText"]
+
+
+            # Save conversation to database
+            insertConversation = Blog(title=text, body='{0}'.format(conversation[-1]['content']), tag='{0}'.format(conversation2[-1]['content']), category=int(os.environ.get("CATEGORY_ID")))
+            insertConversation.save()
+
+        return redirect('blogMain')
+    else:
+        return render(request, 'chatGPT.html')
+    
+
+def generate_response_davinchi(prompt):
     response = openai.Completion.create(
-        engine= os.environ.get("ENGINE"),
+        model= os.environ.get("DAVINCHI_ENGINE"),
         prompt=prompt,
-        temperature= os.environ.get("TEMPERATURE"),
-        max_tokens= os.environ.get("MAX_TOKENS"),
-        top_p= os.environ.get("TOP_P"),
-        frequency_penalty= os.environ.get("FREQUENCY_PENALTY"),
-        presence_penalty= os.environ.get("PRESENCE_PENALTY")
+        temperature= float(os.environ.get("TEMPERATURE")),
+        max_tokens= int(os.environ.get("MAX_TOKENS")),
+        top_p= int(os.environ.get("TOP_P")),
+        frequency_penalty= float(os.environ.get("FREQUENCY_PENALTY")),
+        presence_penalty= float(os.environ.get("PRESENCE_PENALTY"))
     )
     message = response.choices[0].text.strip()
     return message
 
-def chatGPT(request):
-    """Handle file upload and generate content for each row"""
+
+def davinchi(request):
     if request.method == 'POST':
 
         text1 = [request.POST['text'], request.POST['text2'], request.POST['text3']]
@@ -167,52 +226,35 @@ def chatGPT(request):
                 return redirect('blogMain')
 
             # Generate different prompts and responses
-            prompt1 = f"""
-                write a blog about this movie. movie: {text}             
-            """
-            message1 = generate_response(prompt1)
+            prompt1 = os.environ.get("DAVINCHI_1").format(text)
+            message1 = generate_response_davinchi(prompt1)
             print(f"ChatGpt1:  {message1}")
 
-            prompt2 = f"""
-                write a blog about a good perspectives and detailed explanations when we watch this movie. Do not write explanations. movie: {text}
-            """
-            message2 = generate_response(prompt2)
+            prompt2 = os.environ.get("DAVINCHI_2").format(message1)
+            message2 = generate_response_davinchi(prompt2)
             print(f"ChatGpt2:  {message2}")
 
-            prompt3 = f"""
-                write a 10 hashtags fit to this blog title, {text}. And don't write "#" in front of each hashtags. And connect each hashtags with comma(,).
-            """
-            message3 = generate_response(prompt3)
+            prompt3 = os.environ.get("DAVINCHI_3").format(text)
+            message3 = generate_response_davinchi(prompt3)
             print(f"ChatGpt3:  {message3}")
             # papagoResponse3 = requests.post(settings.PAPAGO_URL, headers=settings.HEADERS, data={"source": "en", "target": "ko", "text": message3})
             # papagoResult3 = papagoResponse3.json()["message"]["result"]["translatedText"]
 
-            prompt4 = f"""
-                write a specific 3 examples of people's reactions to this movie. movie: {text}
-            """
-            message4 = generate_response(prompt4)
+            prompt4 = os.environ.get("DAVINCHI_4").format(text)
+            message4 = generate_response_davinchi(prompt4)
             print(f"ChatGpt4:  {message4}")
 
             prompt5 = f""" Put them together and write a long movie blog post. At least 2000 words. Do not write explanations. Write all in HTML code.
                 '{message1}', '{message2}', '{message4}'
             """
-            message5 = generate_response(prompt5)
+            message5 = generate_response_davinchi(prompt5)
             print(f"ChatGpt5:  {message5}")
 
             # Save conversation to database
-            insertConversation = Blog(title=text, body=message5, tag=message3, category=os.environ.get("CATEGORY_ID"))
+            insertConversation = Blog(title=text, body=message2, tag=message3, category=os.environ.get("CATEGORY_ID"))
             insertConversation.save()
 
         return redirect('blogMain')
     else:
-        return render(request, 'chatGPT.html')
-
-
-
-# def conversation_list(request):
-#     # conversation = ModelConversation.objects.all()
-#     getConversation = ModelConversation.objects.get(id=1)
-#     print(getConversation)
-
-#     return render(request, 'editor.html', {'conversation': getConversation})
+        return render(request, 'davinchi.html')
 
